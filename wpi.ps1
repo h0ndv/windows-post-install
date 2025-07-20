@@ -19,6 +19,7 @@ function Show-Menu {
     Write-Host "[D] Win11 Debloat - https://github.com/Raphire/Win11Debloat " -ForegroundColor Yellow
     Write-Host
     Write-Host "[X] Exit" -ForegroundColor Yellow
+    Write-Host "[R] Restart system" -ForegroundColor Yellow
 }
 
 # Basic installation apps 
@@ -290,6 +291,20 @@ function Pause {
     Read-Host -Prompt "`nPress Enter to continue..."
 }
 
+function Restart-System {
+    $userChoice = Read-Host "`nDo you want to reboot the system? [Y] or [N]"
+    
+    if ($userChoice -notin 'y', 'Y') {
+        Write-Host "`nReboot cancelled by user." -ForegroundColor Yellow
+        Pause
+        return
+    }
+
+    Write-Host "Rebooting the system..." -ForegroundColor Yellow
+    Start-Sleep -Seconds 2
+    Restart-Computer
+}
+
 # Main loop
 $loop = $true
 do {
@@ -309,6 +324,7 @@ do {
         "10" { Show-AppMenu -AppList $WingetSecurityList -Title "Security and Privacy Apps" }
         # "U" { WindowsUpdate }
         "D" { Invoke-Win11Debloat }
+        "R" { Restart-System }
         "x" {
             Write-Host "Exit" -ForegroundColor Yellow
             $loop = $false
