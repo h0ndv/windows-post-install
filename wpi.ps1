@@ -305,9 +305,44 @@ function Restart-System {
     Restart-Computer
 }
 
+function Get-Winget {
+    $userChoice = Read-Host "`nDo you want to automatically install winget from the Github repository? [Y/N]"
+    
+    if ($userChoice.ToLower() -notin 'y', 'yes') {
+        Write-Host "This script requires winget to function properly." -ForegroundColor Red
+        exit
+    }
+
+    $installerUrl = "https://github.com/microsoft/winget-cli/releases/latest/download/Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle"
+    $path = "$env:TEMP\winget.msixbundle"
+
+    try {
+        Write-Host "Downloading winget from GitHub..." -ForegroundColor Cyan
+        Invoke-WebRequest -Uri $installerUrl -OutFile $path -UseBasicParsing
+
+        Write-Host "Installing winget..." -ForegroundColor Cyan
+        Add-AppxPackage -Path $path
+
+        Write-Host "Winget installation complete." -ForegroundColor Green
+        Pause
+    } catch {
+        Write-Host "> Failed to install winget: $($_.Exception.Message)" -ForegroundColor Red
+        Pause
+        exit
+    }
+}
+
 # Main loop
 $loop = $true
 do {
+    
+    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+        Write-Host "`n> Winget is not installed on this system." -ForegroundColor Red
+        Write-Host "> You can download it manually from Microsoft Store or Github repository:" -ForegroundColor Yellow
+        Write-Host "  https://github.com/microsoft/winget-cli" -ForegroundColor Cyan
+        Get-Winget
+    }
+
     Show-Menu
     $option = Read-Host "`nSelect an option"
 
