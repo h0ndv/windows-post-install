@@ -305,6 +305,12 @@ function Restart-System {
     Restart-Computer
 }
 
+function Check-AdminPrivileges {
+    $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $isAdmin = New-Object Security.Principal.WindowsPrincipal($currentUser)
+    return $isAdmin.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
 function Get-Winget {
     $userChoice = Read-Host "`nDo you want to automatically install winget from the Github repository? [Y/N]"
     
@@ -335,6 +341,15 @@ function Get-Winget {
 # Main loop
 $loop = $true
 do {
+    
+    # Check if running as administrator
+    if (-not (Check-AdminPrivileges)) {
+        Write-Host "`n> This script requires administrator privileges to run properly." -ForegroundColor Red
+        Write-Host "> Please run PowerShell as Administrator and try again." -ForegroundColor Yellow
+        Write-Host "> Right-click on PowerShell and select 'Run as Administrator'" -ForegroundColor Cyan
+        Pause
+        exit
+    }
     
     if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
         Write-Host "`n> Winget is not installed on this system." -ForegroundColor Red
