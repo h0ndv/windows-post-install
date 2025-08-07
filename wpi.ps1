@@ -13,6 +13,7 @@ function Show-Menu {
     Write-Host "[8] Music and Video Players"
     Write-Host "[9] Recording, Screenshots and Meetings"
     Write-Host "[10] Security and Privacy (VPNs)"
+    Write-Host "[11] Office and PDF Applications"
     Write-Host
     Write-Host "===== Optimization Tools =====" -ForegroundColor Cyan
     # Write-Host "[U] Enable / Disable Windows Update"
@@ -178,6 +179,17 @@ $WingetSecurityList = @(
     @{ Name = "TunnelBear VPN"; Id = "TunnelBear.TunnelBear" },
     @{ Name = "Windscribe VPN"; Id = "Windscribe.Windscribe" },
     @{ Name = "Wireshark"; Id = "WiresharkFoundation.Wireshark" }
+)
+
+# Office and PDF Applications
+$WingetOfficeList = @(
+    @{ Name = "Adobe Acrobat Reader DC"; Id = "Adobe.Acrobat.Reader.64-bit" },
+    @{ Name = "LibreOffice"; Id = "TheDocumentFoundation.LibreOffice" },
+    @{ Name = "Microsoft 365 Enterprise en-us"; Id = "Microsoft.Office" },
+    @{ Name = "Microsoft Office 2021"; Id = "Microsoft.Office.2021" },
+    @{ Name = "Sumatra PDF"; Id = "SumatraPDF.SumatraPDF" },
+    @{ Name = "PDF24 Creator"; Id = "PDF24.PDF24Creator" },
+    @{ Name = "WPS Office"; Id = "Kingsoft.WPSOffice" }
 )
 
 # Show main menu
@@ -372,6 +384,7 @@ do {
         "8" { Show-CategoryMenu -CategoryTable $MediaCategories -Title "Media Apps" }
         "9" { Show-AppMenu -AppList $WingetScreenList -Title "Recording, Screenshots & Meetings Apps" }
         "10" { Show-AppMenu -AppList $WingetSecurityList -Title "Security and Privacy Apps" }
+        "11" { Show-AppMenu -AppList $WingetOfficeList -Title "Office and PDF Applications" }
         # "U" { WindowsUpdate }
         "D" { Invoke-Win11Debloat }
         "R" { Restart-System }
