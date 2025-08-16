@@ -1,3 +1,5 @@
+## Set-ExecutionPolicy Unrestricted
+
 function Show-Menu {
     Clear-Host
     Write-Host "===== Windows Post Install =====" -ForegroundColor Cyan
@@ -16,7 +18,7 @@ function Show-Menu {
     Write-Host "[11] Office and PDF Applications"
     Write-Host
     Write-Host "===== Optimization Tools =====" -ForegroundColor Cyan
-    # Write-Host "[U] Enable / Disable Windows Update"
+    Write-Host "[U] Windows Update Control" -ForegroundColor Yellow
     Write-Host "[D] Win11 Debloat - https://github.com/Raphire/Win11Debloat " -ForegroundColor Yellow
     Write-Host
     Write-Host "[X] Exit" -ForegroundColor Yellow
@@ -25,11 +27,11 @@ function Show-Menu {
 
 # Basic installation apps 
 $WingetBasicList = @(
-    "Adobe.Acrobat.Reader.64-bit",
     "Google.Chrome",
     # "Microsoft.Office", # Microsoft 365 Enterprise en-us
     "RARLab.WinRAR",
-    "Microsoft.WindowsTerminal"
+    "Microsoft.WindowsTerminal",
+    "Adobe.Acrobat.Reader.64-bit"
 )
 
 # Install basic apps
@@ -72,17 +74,19 @@ $WingetBrowserList = @(
 $WingetCodingList = @(
     @{ Name = "Android Studio"; Id = "Google.AndroidStudio" },
     @{ Name = "Cursor"; Id = "Anysphere.Cursor" },
-    @{ Name = "DBeaver"; Id = "DBeaver.DBeaver" },
+    @{ Name = "DBeaver"; Id = "DBeaver.DBeaver.Community" },
     @{ Name = "Docker Desktop"; Id = "Docker.DockerDesktop" },
     @{ Name = "Git Bash (Git for Windows)"; Id = "Git.Git" },
     @{ Name = "GitHub Desktop"; Id = "GitHub.GitHubDesktop" },
+    @{ Name = "JetBrains PyCharm"; Id = "JetBrains.PyCharm.Community" },
+    @{ Name = "JetBrains PhpStorm"; Id = "JetBrains.PyCharm.Community" },
     @{ Name = "MySQL Workbench"; Id = "Oracle.MySQLWorkbench" },
     @{ Name = "NeoVim"; Id = "Neovim.Neovim" },
     @{ Name = "NetBeans IDE"; Id = "Apache.NetBeans" },
     @{ Name = "Node.js LTS"; Id = "OpenJS.NodeJS.LTS" },
     @{ Name = "Notepad++"; Id = "Notepad++.Notepad++" },
     @{ Name = "Postman"; Id = "Postman.Postman" },
-    @{ Name = "Python 3"; Id = "Python.Python.3" },
+    @{ Name = "Python 3.9"; Id = "Python.Python.3.9" },
     @{ Name = "VirtualBox"; Id = "Oracle.VirtualBox" },
     @{ Name = "Visual Studio 2022 Community"; Id = "Microsoft.VisualStudio.2022.Community" },
     @{ Name = "Visual Studio Code"; Id = "Microsoft.VisualStudioCode" },
@@ -299,6 +303,314 @@ function Invoke-Win11Debloat {
     & ([scriptblock]::Create((Invoke-RestMethod "https://debloat.raphi.re/")))
 }
 
+function WindowsUpdate {
+    do {
+        Clear-Host
+        Write-Host "===== Windows Update Control =====" -ForegroundColor Cyan
+        Write-Host "[1] Completely Disabling Windows Update" -ForegroundColor DarkRed
+        Write-Host "[2] Enable Windows Update" -ForegroundColor Green
+        Write-Host "[3] Check Current Status" -ForegroundColor Yellow
+        Write-Host "[0] Back to Main Menu" -ForegroundColor Yellow
+        
+        $choice = Read-Host "`nSelect an option"
+        
+        switch ($choice) {
+            "1" { 
+                Write-Host "`nCompletely Disabling Windows Update..." -ForegroundColor DarkRed
+                Write-Host "This will use the most aggressive methods possible to disable Windows Update" -ForegroundColor Red
+                Write-Host "WARNING: This may affect other Windows services and features!" -ForegroundColor Yellow
+                $confirm = Read-Host "`nAre you absolutely sure you want to proceed? Type 'YES' to confirm"
+                
+                if ($confirm -eq "YES") {
+                    try {
+                        Write-Host "`nExecuting complete Windows Update disable..." -ForegroundColor DarkRed
+                        
+                        # Disable ALL related services aggressively
+                        $allServices = @("wuauserv", "bits", "cryptSvc", "DoSvc", "UsoSvc", "WaaSMedicSvc", "wisvc")
+                        foreach ($service in $allServices) {
+                            if (Get-Service -Name $service -ErrorAction SilentlyContinue) {
+                                # Force stop multiple times
+                                for ($i = 1; $i -le 10; $i++) {
+                                    Stop-Service -Name $service -Force -ErrorAction SilentlyContinue
+                                }
+                                # Set to disabled and prevent restart
+                                Set-Service -Name $service -StartupType Disabled -ErrorAction SilentlyContinue
+                                Write-Host "Service $service stopped and disabled" -ForegroundColor Green
+                            }
+                        }
+                        
+                        # Disable scheduled tasks
+                        Write-Host "`nDisabling Windows Update scheduled tasks..." -ForegroundColor Yellow
+                        $tasks = @(
+                            "\Microsoft\Windows\WindowsUpdate\Automatic App Update",
+                            "\Microsoft\Windows\WindowsUpdate\Automatic App Update (RAC)",
+                            "\Microsoft\Windows\WindowsUpdate\Scheduled Start",
+                            "\Microsoft\Windows\WindowsUpdate\sih",
+                            "\Microsoft\Windows\WindowsUpdate\sihboot",
+                            "\Microsoft\Windows\WindowsUpdate\UpdateModelTask",
+                            "\Microsoft\Windows\WindowsUpdate\UpdateOrchestrator\Schedule Scan",
+                            "\Microsoft\Windows\WindowsUpdate\UpdateOrchestrator\Schedule Scan Static Task",
+                            "\Microsoft\Windows\WindowsUpdate\UpdateOrchestrator\Schedule Scan User Task",
+                            "\Microsoft\Windows\WindowsUpdate\UpdateOrchestrator\UpdateModelTask",
+                            "\Microsoft\Windows\WindowsUpdate\UpdateOrchestrator\USO_UxBroker"
+                        )
+                        
+                        foreach ($task in $tasks) {
+                            try {
+                                Disable-ScheduledTask -TaskName $task -ErrorAction SilentlyContinue
+                                Write-Host "Task disabled: $task" -ForegroundColor Green
+                            } catch {
+                                Write-Host "Task not found: $task" -ForegroundColor Yellow
+                            }
+                        }
+                        
+                        # Create firewall rules to block Windows Update
+                        Write-Host "`nCreating firewall rules to block Windows Update..." -ForegroundColor Yellow
+                        try {
+                            New-NetFirewallRule -DisplayName "Block Windows Update" -Direction Outbound -Action Block -Program "C:\Windows\System32\wuauserv.exe" -ErrorAction SilentlyContinue
+                            New-NetFirewallRule -DisplayName "Block Windows Update URLs" -Direction Outbound -Action Block -RemoteAddress "*.update.microsoft.com", "*.windowsupdate.com", "*.microsoft.com" -ErrorAction SilentlyContinue
+                            Write-Host "Firewall rules created" -ForegroundColor Green
+                        } catch {
+                            Write-Host "Firewall rules may already exist" -ForegroundColor Yellow
+                        }
+                        
+                        # Additional aggressive registry modifications
+                        $nuclearPaths = @(
+                            "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\AU\DetectionFrequency",
+                            "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\AU\NoAutoRebootWithLoggedOnUsers",
+                            "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\AU\NoAutoRebootWithLoggedOnUsers",
+                            "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\AU\RebootRelaunchTimeout",
+                            "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\AU\RebootWarningTimeout",
+                            "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\AU\RescheduleWaitTime",
+                            "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\AU\ScheduledInstallDay",
+                            "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\AU\ScheduledInstallTime"
+                        )
+                        
+                        foreach ($path in $nuclearPaths) {
+                            if (-not (Test-Path $path)) {
+                                New-Item -Path $path -Force | Out-Null
+                            }
+                        }
+                        
+                        # Set ALL registry values to disable
+                        Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\AU\DetectionFrequency" -Name "DetectionFrequencyEnabled" -Value 0 -ErrorAction Stop
+                        Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\AU\NoAutoRebootWithLoggedOnUsers" -Name "NoAutoRebootWithLoggedOnUsers" -Value 1 -ErrorAction Stop
+                        Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\AU\RebootRelaunchTimeout" -Name "RebootRelaunchTimeout" -Value 0 -ErrorAction Stop
+                        Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\AU\RebootWarningTimeout" -Name "RebootWarningTimeout" -Value 0 -ErrorAction Stop
+                        Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\AU\RescheduleWaitTime" -Name "RescheduleWaitTime" -Value 0 -ErrorAction Stop
+                        Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\AU\ScheduledInstallDay" -Name "ScheduledInstallDay" -Value 0 -ErrorAction Stop
+                        Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\AU\ScheduledInstallTime" -Name "ScheduledInstallTime" -Value 0 -ErrorAction Stop
+                        
+                        # Force registry values to stay disabled
+                        Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update" -Name "AUOptions" -Value 1 -ErrorAction Stop
+                        Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -Name "AUOptions" -Value 1 -ErrorAction Stop
+                        Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -Name "NoAutoUpdate" -Value 1 -ErrorAction Stop
+                        
+                        Write-Host "`nWindows Update has been completely disabled!" -ForegroundColor Green
+                        Write-Host "All services stopped and disabled" -ForegroundColor Green
+                        Write-Host "Scheduled tasks disabled" -ForegroundColor Green
+                        Write-Host "Firewall rules created" -ForegroundColor Green
+                        Write-Host "Registry completely modified" -ForegroundColor Green
+                        Write-Host "CRITICAL: Restart your computer NOW!" -ForegroundColor Red
+                        Write-Host "After restart, Windows Update should be completely disabled!" -ForegroundColor Yellow
+                    }
+                    catch {
+                        Write-Host "Error disabling Windows Update: $($_.Exception.Message)" -ForegroundColor Red
+                    }
+                } else {
+                    Write-Host "Windows Update disable cancelled." -ForegroundColor Yellow
+                }
+                Pause
+            }
+            "2" { 
+                Write-Host "`nEnabling Windows Update..." -ForegroundColor Green
+                try {
+                    # Enable Windows Update services - MORE AGGRESSIVE
+                    $services = @("wuauserv", "bits", "cryptSvc", "DoSvc", "UsoSvc", "WaaSMedicSvc", "wisvc")
+                    foreach ($service in $services) {
+                        if (Get-Service -Name $service -ErrorAction SilentlyContinue) {
+                            Set-Service -Name $service -StartupType Automatic -ErrorAction SilentlyContinue
+                            Start-Service -Name $service -ErrorAction SilentlyContinue
+                            Write-Host "Service $service enabled and started" -ForegroundColor Green
+                        }
+                    }
+                    
+                    # Re-enable scheduled tasks
+                    Write-Host "`nRe-enabling Windows Update scheduled tasks..." -ForegroundColor Yellow
+                    $tasks = @(
+                        "\Microsoft\Windows\WindowsUpdate\Automatic App Update",
+                        "\Microsoft\Windows\WindowsUpdate\Automatic App Update (RAC)",
+                        "\Microsoft\Windows\WindowsUpdate\Scheduled Start",
+                        "\Microsoft\Windows\WindowsUpdate\sih",
+                        "\Microsoft\Windows\WindowsUpdate\sihboot",
+                        "\Microsoft\Windows\WindowsUpdate\UpdateModelTask",
+                        "\Microsoft\Windows\WindowsUpdate\UpdateOrchestrator\Schedule Scan",
+                        "\Microsoft\Windows\WindowsUpdate\UpdateOrchestrator\Schedule Scan Static Task",
+                        "\Microsoft\Windows\WindowsUpdate\UpdateOrchestrator\Schedule Scan User Task",
+                        "\Microsoft\Windows\WindowsUpdate\UpdateOrchestrator\UpdateModelTask",
+                        "\Microsoft\Windows\WindowsUpdate\UpdateOrchestrator\USO_UxBroker"
+                    )
+                    
+                    foreach ($task in $tasks) {
+                        try {
+                            Enable-ScheduledTask -TaskName $task -ErrorAction SilentlyContinue
+                            Write-Host "Task enabled: $task" -ForegroundColor Green
+                        } catch {
+                            Write-Host "Task not found: $task" -ForegroundColor Yellow
+                        }
+                    }
+                    
+                    # Remove firewall rules that block Windows Update
+                    Write-Host "`nRemoving firewall rules that block Windows Update..." -ForegroundColor Yellow
+                    try {
+                        Remove-NetFirewallRule -DisplayName "Block Windows Update" -ErrorAction SilentlyContinue
+                        Remove-NetFirewallRule -DisplayName "Block Windows Update URLs" -ErrorAction SilentlyContinue
+                        Write-Host "Firewall rules removed" -ForegroundColor Green
+                    } catch {
+                        Write-Host "Firewall rules may not exist" -ForegroundColor Yellow
+                    }
+                    
+                    # Enable Windows Update through registry - ALL LOCATIONS
+                    Write-Host "`nRestoring registry settings..." -ForegroundColor Yellow
+                    
+                    # Main Windows Update registry
+                    Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update" -Name "AUOptions" -Value 3 -ErrorAction Stop
+                    
+                    # Policy registry
+                    Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -Name "NoAutoUpdate" -Value 0 -ErrorAction Stop
+                    Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -Name "AUOptions" -Value 3 -ErrorAction Stop
+                    
+                    # Enable Delivery Optimization
+                    Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\DeliveryOptimization\Settings" -Name "DODownloadMode" -Value 1 -ErrorAction Stop
+                    
+                    # Restore all AU registry values
+                    $auPaths = @(
+                        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\AU\DetectionFrequency",
+                        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\AU\NoAutoRebootWithLoggedOnUsers",
+                        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\AU\RebootRelaunchTimeout",
+                        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\AU\RebootWarningTimeout",
+                        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\AU\RescheduleWaitTime",
+                        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\AU\ScheduledInstallDay",
+                        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\AU\ScheduledInstallTime"
+                    )
+                    
+                    foreach ($path in $auPaths) {
+                        if (Test-Path $path) {
+                            try {
+                                # Restore default values
+                                if ($path -like "*DetectionFrequency*") {
+                                    Set-ItemProperty -Path $path -Name "DetectionFrequencyEnabled" -Value 1 -ErrorAction SilentlyContinue
+                                }
+                                if ($path -like "*NoAutoRebootWithLoggedOnUsers*") {
+                                    Set-ItemProperty -Path $path -Name "NoAutoRebootWithLoggedOnUsers" -Value 0 -ErrorAction SilentlyContinue
+                                }
+                                if ($path -like "*RebootRelaunchTimeout*") {
+                                    Set-ItemProperty -Path $path -Name "RebootRelaunchTimeout" -Value 10 -ErrorAction SilentlyContinue
+                                }
+                                if ($path -like "*RebootWarningTimeout*") {
+                                    Set-ItemProperty -Path $path -Name "RebootWarningTimeout" -Value 30 -ErrorAction SilentlyContinue
+                                }
+                                if ($path -like "*RescheduleWaitTime*") {
+                                    Set-ItemProperty -Path $path -Name "RescheduleWaitTime" -Value 10 -ErrorAction SilentlyContinue
+                                }
+                                if ($path -like "*ScheduledInstallDay*") {
+                                    Set-ItemProperty -Path $path -Name "ScheduledInstallDay" -Value 0 -ErrorAction SilentlyContinue
+                                }
+                                if ($path -like "*ScheduledInstallTime*") {
+                                    Set-ItemProperty -Path $path -Name "ScheduledInstallTime" -Value 3 -ErrorAction SilentlyContinue
+                                }
+                            } catch {
+                                Write-Host "Could not restore: $path" -ForegroundColor Yellow
+                            }
+                        }
+                    }
+                    
+                    # Remove restrictive policies
+                    Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate" -Name "DisableWindowsUpdateAccess" -ErrorAction SilentlyContinue
+                    Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate" -Name "SetDisableUXWUAccess" -ErrorAction SilentlyContinue
+                    Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate" -Name "DoNotConnectToWindowsUpdateInternetLocations" -ErrorAction SilentlyContinue
+                    Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate" -Name "DoNotAllowUpdateDeferralPoliciesToTurnOffFeatureUpdates" -ErrorAction SilentlyContinue
+                    Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\WindowsStore" -Name "DisableOSUpgrade" -ErrorAction SilentlyContinue
+                    
+                    # Remove Explorer policy
+                    Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer" -Name "NoWindowsUpdate" -ErrorAction SilentlyContinue
+                    
+                    Write-Host "`nWindows Update has been aggressively re-enabled!" -ForegroundColor Green
+                    Write-Host "All services enabled and started" -ForegroundColor Green
+                    Write-Host "Scheduled tasks re-enabled" -ForegroundColor Green
+                    Write-Host "Firewall rules removed" -ForegroundColor Green
+                    Write-Host "Registry completely restored" -ForegroundColor Green
+                    Write-Host "IMPORTANT: Restart your computer for all changes to take full effect!" -ForegroundColor Yellow
+                }
+                catch {
+                    Write-Host "Error enabling Windows Update: $($_.Exception.Message)" -ForegroundColor Red
+                }
+                Pause
+            }
+            "3" { 
+                Write-Host "`nChecking Windows Update status..." -ForegroundColor Yellow
+                try {
+                    $service = Get-Service -Name "wuauserv" -ErrorAction Stop
+                    $registry = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update" -Name "AUOptions" -ErrorAction SilentlyContinue
+                    $policyRegistry = Get-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -Name "AUOptions" -ErrorAction SilentlyContinue
+                    
+                    Write-Host "`nWindows Update Service Status:" -ForegroundColor Cyan
+                    Write-Host "Service Name: $($service.Name)" -ForegroundColor White
+                    Write-Host "Service Status: $($service.Status)" -ForegroundColor White
+                    Write-Host "Startup Type: $($service.StartType)" -ForegroundColor White
+                    
+                    Write-Host "`nRegistry Settings:" -ForegroundColor Cyan
+                    if ($registry) {
+                        Write-Host "Main Registry AUOptions: $($registry.AUOptions)" -ForegroundColor White
+                    }
+                    if ($policyRegistry) {
+                        Write-Host "Policy Registry AUOptions: $($policyRegistry.AUOptions)" -ForegroundColor White
+                    }
+                    
+                    # Check additional services
+                    $additionalServices = @("bits", "cryptSvc", "DoSvc")
+                    Write-Host "`nAdditional Services Status:" -ForegroundColor Cyan
+                    foreach ($svc in $additionalServices) {
+                        $svcStatus = Get-Service -Name $svc -ErrorAction SilentlyContinue
+                        if ($svcStatus) {
+                            Write-Host "$svc : $($svcStatus.Status) ($($svcStatus.StartType))" -ForegroundColor White
+                        }
+                    }
+                    
+                    $auOptions = @{
+                        1 = "Disabled"
+                        2 = "Notify before download"
+                        3 = "Automatically download and notify of installation"
+                        4 = "Automatically download and schedule installation"
+                    }
+                    
+                    if ($registry -and $auOptions.ContainsKey($registry.AUOptions)) {
+                        Write-Host "`nCurrent Setting: $($auOptions[$registry.AUOptions])" -ForegroundColor White
+                    }
+                    
+                    Write-Host "`nNote: AUOptions values:" -ForegroundColor Yellow
+                    Write-Host "1 = Disabled" -ForegroundColor White
+                    Write-Host "2 = Notify before download" -ForegroundColor White
+                    Write-Host "3 = Automatically download and notify of installation" -ForegroundColor White
+                    Write-Host "4 = Automatically download and schedule installation" -ForegroundColor White
+                }
+                catch {
+                    Write-Host "Error checking Windows Update status: $($_.Exception.Message)" -ForegroundColor Red
+                }
+                Pause
+            }
+            "0" { 
+                Write-Host "Returning to main menu..." -ForegroundColor Yellow
+                return 
+            }
+            Default {
+                Write-Host "Invalid option. Please try again." -ForegroundColor Red
+                Pause
+            }
+        }
+    } while ($true)
+}
+
 function Pause {
     Read-Host -Prompt "`nPress Enter to continue..."
 }
@@ -317,7 +629,7 @@ function Restart-System {
     Restart-Computer
 }
 
-function Check-AdminPrivileges {
+function Test-AdminPrivileges {
     $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent()
     $isAdmin = New-Object Security.Principal.WindowsPrincipal($currentUser)
     return $isAdmin.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -355,7 +667,7 @@ $loop = $true
 do {
     
     # Check if running as administrator
-    if (-not (Check-AdminPrivileges)) {
+    if (-not (Test-AdminPrivileges)) {
         Write-Host "`n> This script requires administrator privileges to run properly." -ForegroundColor Red
         Write-Host "> Please run PowerShell as Administrator and try again." -ForegroundColor Yellow
         Write-Host "> Right-click on PowerShell and select 'Run as Administrator'" -ForegroundColor Cyan
@@ -385,7 +697,7 @@ do {
         "9" { Show-AppMenu -AppList $WingetScreenList -Title "Recording, Screenshots & Meetings Apps" }
         "10" { Show-AppMenu -AppList $WingetSecurityList -Title "Security and Privacy Apps" }
         "11" { Show-AppMenu -AppList $WingetOfficeList -Title "Office and PDF Applications" }
-        # "U" { WindowsUpdate }
+        "U" { WindowsUpdate }
         "D" { Invoke-Win11Debloat }
         "R" { Restart-System }
         "x" {
