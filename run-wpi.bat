@@ -16,7 +16,7 @@ if %errorLevel% neq 0 (
     echo.
     echo Requesting privilege elevation...
     echo.
-    powershell.exe -Command "Start-Process powershell -ArgumentList '-ExecutionPolicy', 'Bypass', '-File', '%~dp0wpi.ps1' -Verb RunAs"
+    powershell.exe -Command "Start-Process '%~dp0run-wpi.bat' -Verb RunAs"
     echo.
     exit /b
 )
