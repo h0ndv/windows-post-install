@@ -18,7 +18,8 @@ function Show-Menu {
     Write-Host "[11] Office and PDF Applications"
     Write-Host
     Write-Host "===== Optimization Tools =====" -ForegroundColor Cyan
-    Write-Host "[U] Windows Update Control" -ForegroundColor Yellow
+    Write-Host "[L] Run Windows Update" -ForegroundColor Yellow
+    Write-Host "[U] Windows Update Control (Disable or Enable)" -ForegroundColor Yellow
     Write-Host "[D] Win11 Debloat - https://github.com/Raphire/Win11Debloat " -ForegroundColor Yellow
     Write-Host
     Write-Host "[X] Exit" -ForegroundColor Yellow
@@ -47,7 +48,7 @@ function InstallBasicApps {
         return
     }
 
-    foreach ($app in $WingetBasicList) {
+    try { foreach ($app in $WingetBasicList) {
         Write-Host "`nInstalling $app...`n" -ForegroundColor Cyan
         try {
             winget install --accept-package-agreements --accept-source-agreements --id $app -e -h
@@ -55,6 +56,15 @@ function InstallBasicApps {
             Write-Host "Failed to install $app :`n$($_.Exception.Message)" -ForegroundColor Red
         }
     }
+    } catch {
+        Write-Host "Failed to install basic apps: $($_.Exception.Message)" -ForegroundColor Red
+        Pause
+        return
+    }
+
+    Write-Host "`nBasic Apps Installation completed." -ForegroundColor Green
+
+    # Install-WindowsUpdates
     Pause
 }
 
@@ -301,6 +311,19 @@ function Invoke-ActivationTool {
 function Invoke-Win11Debloat {
     Write-Host "`nExecuting external script - Win11Debloat..." -ForegroundColor Yellow
     & ([scriptblock]::Create((Invoke-RestMethod "https://debloat.raphi.re/")))
+}
+
+function Install-WindowsUpdates {
+	Write-Host "`nRunning Windows Update..." -ForegroundColor Yellow
+	
+	# Windows Update Module
+    Install-Module -Name PSWindowsUpdate -Force
+
+	# Get all Updates
+	Get-WindowsUpdate -Confirm -AcceptAll
+
+	# Install all updates
+	Install-WindowsUpdate -MicrosoftUpdate -AcceptAll -Confirm -IgnoreReboot
 }
 
 function WindowsUpdate {
@@ -698,6 +721,7 @@ do {
         "10" { Show-AppMenu -AppList $WingetSecurityList -Title "Security and Privacy Apps" }
         "11" { Show-AppMenu -AppList $WingetOfficeList -Title "Office and PDF Applications" }
         "U" { WindowsUpdate }
+        "L" { Install-WindowsUpdates }
         "D" { Invoke-Win11Debloat }
         "R" { Restart-System }
         "x" {
