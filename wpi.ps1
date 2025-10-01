@@ -4,18 +4,19 @@ function Show-Menu {
     Clear-Host
     Write-Host "===== Windows Post Install =====" -ForegroundColor Cyan
     Write-Host "[1] Basic Apps Installation"
-    Write-Host "[2] Download Office Tool Plus - https://github.com/YerongAI/Office-Tool" -ForegroundColor Yellow
-    Write-Host "[3] Microsoft Activation Script - https://massgrave.dev/" -ForegroundColor Yellow
+    Write-Host "[2] Install Apps from Apps Folder" -ForegroundColor Green
+    Write-Host "[3] Download Office Tool Plus - https://github.com/YerongAI/Office-Tool" -ForegroundColor Yellow
+    Write-Host "[4] Microsoft Activation Script - https://massgrave.dev/" -ForegroundColor Yellow
     Write-Host
     Write-Host "===== Install Others Apps =====" -ForegroundColor Cyan
-    Write-Host "[4] Browsers"
-    Write-Host "[5] Coding and IDEs"
-    Write-Host "[6] Gaming"
-    Write-Host "[7] Hardware Monitoring"
-    Write-Host "[8] Music and Video Players"
-    Write-Host "[9] Recording, Screenshots and Meetings"
-    Write-Host "[10] Security and Privacy (VPNs)"
-    Write-Host "[11] Office and PDF Applications"
+    Write-Host "[5] Browsers"
+    Write-Host "[6] Coding and IDEs"
+    Write-Host "[7] Gaming"
+    Write-Host "[8] Hardware Monitoring"
+    Write-Host "[9] Music and Video Players"
+    Write-Host "[10] Recording, Screenshots and Meetings"
+    Write-Host "[11] Security and Privacy (VPNs)"
+    Write-Host "[12] Office and PDF Applications"
     Write-Host
     Write-Host "===== Optimization Tools =====" -ForegroundColor Cyan
     Write-Host "[L] Run Windows Update" -ForegroundColor Yellow
@@ -634,6 +635,78 @@ function WindowsUpdate {
     } while ($true)
 }
 
+# Install apps from Apps folder
+function Install-AppsFromFolder {
+    $appsFolder = Join-Path $PSScriptRoot "Apps"
+    
+    if (-not (Test-Path $appsFolder)) {
+        Write-Host "Apps folder not found at: $appsFolder" -ForegroundColor Red
+        Pause
+        return
+    }
+    
+    $installerFiles = Get-ChildItem -Path $appsFolder -File | Where-Object { 
+        $_.Extension -match '\.(exe|msi|msix|appx)$' 
+    }
+    
+    if ($installerFiles.Count -eq 0) {
+        Write-Host "No installer files found in Apps folder." -ForegroundColor Yellow
+        Pause
+        return
+    }
+    
+    Write-Host "`nFound the following installers:" -ForegroundColor Cyan
+    $installerFiles | ForEach-Object { Write-Host "- $($_.Name)" }
+    
+    $confirm = Read-Host "`nDo you want to install all apps from the Apps folder? (Y/N)"
+    
+    if ($confirm -notmatch '^(Y|y)$') {
+        Write-Host "Apps installation cancelled." -ForegroundColor Red
+        Pause
+        return
+    }
+    
+    foreach ($installer in $installerFiles) {
+        Write-Host "`nInstalling $($installer.Name)..." -ForegroundColor Cyan
+        
+        try {
+            $installerPath = $installer.FullName
+            
+            # Try silent installation for common installers
+            switch ($installer.Extension.ToLower()) {
+                ".exe" {
+                    Start-Process -FilePath $installerPath -ArgumentList "/S", "/SILENT", "/VERYSILENT", "/NORESTART" -Wait -NoNewWindow
+                }
+                ".msi" {
+                    # MSI silent installation
+                    Start-Process -FilePath "msiexec.exe" -ArgumentList "/i", "`"$installerPath`"", "/quiet", "/norestart" -Wait -NoNewWindow
+                }
+                ".msix" {
+                    # MSIX installation
+                    Add-AppxPackage -Path $installerPath -ForceApplicationShutdown
+                }
+                ".appx" {
+                    # APPX installation
+                    Add-AppxPackage -Path $installerPath -ForceApplicationShutdown
+                }
+                
+                default {
+                    Write-Host "Unsupported installer type: $($installer.Extension)" -ForegroundColor Yellow
+                    continue
+                }
+            }
+            
+            Write-Host "Successfully installed: $($installer.Name)" -ForegroundColor Green
+        }
+        catch {
+            Write-Host "Failed to install $($installer.Name): $($_.Exception.Message)" -ForegroundColor Red
+        }
+    }
+    
+    Write-Host "`nApps installation completed." -ForegroundColor Green
+    Pause
+}
+
 function Pause {
     Read-Host -Prompt "`nPress Enter to continue..."
 }
@@ -710,16 +783,17 @@ do {
 
     switch ($option) {
         "1" { InstallBasicApps }
-        "2" { Get-OfficeTools }
-        "3" { Invoke-ActivationTool }
-        "4" { Show-AppMenu -AppList $WingetBrowserList -Title "Browser Apps" }
-        "5" { Show-AppMenu -AppList $WingetCodingList -Title "Coding & IDE Apps" }
-        "6" { Show-AppMenu -AppList $WingetGamingList -Title "Gaming Apps" }
-        "7" { Show-AppMenu -AppList $WingetHardwareList -Title "Hardware Monitoring Apps" }
-        "8" { Show-CategoryMenu -CategoryTable $MediaCategories -Title "Media Apps" }
-        "9" { Show-AppMenu -AppList $WingetScreenList -Title "Recording, Screenshots & Meetings Apps" }
-        "10" { Show-AppMenu -AppList $WingetSecurityList -Title "Security and Privacy Apps" }
-        "11" { Show-AppMenu -AppList $WingetOfficeList -Title "Office and PDF Applications" }
+        "2" { Install-AppsFromFolder }
+        "3" { Get-OfficeTools }
+        "4" { Invoke-ActivationTool }
+        "5" { Show-AppMenu -AppList $WingetBrowserList -Title "Browser Apps" }
+        "6" { Show-AppMenu -AppList $WingetCodingList -Title "Coding & IDE Apps" }
+        "7" { Show-AppMenu -AppList $WingetGamingList -Title "Gaming Apps" }
+        "8" { Show-AppMenu -AppList $WingetHardwareList -Title "Hardware Monitoring Apps" }
+        "9" { Show-CategoryMenu -CategoryTable $MediaCategories -Title "Media Apps" }
+        "10" { Show-AppMenu -AppList $WingetScreenList -Title "Recording, Screenshots & Meetings Apps" }
+        "11" { Show-AppMenu -AppList $WingetSecurityList -Title "Security and Privacy Apps" }
+        "12" { Show-AppMenu -AppList $WingetOfficeList -Title "Office and PDF Applications" }
         "U" { WindowsUpdate }
         "L" { Install-WindowsUpdates }
         "D" { Invoke-Win11Debloat }
