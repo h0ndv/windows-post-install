@@ -58,4 +58,4 @@ Name: Display name in the menu
 Id: Winget ID (use winget search to find it)
 
 
-<img alt="wpi" width="800" src="https://imgur.com/wo1KD0J">
+<img alt="wpi" width="800" src="https://i.imgur.com/wo1KD0J.png">
