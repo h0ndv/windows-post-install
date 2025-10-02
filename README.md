@@ -3,7 +3,7 @@ Windows Post-Install Script and optimization tools using PowerShell and [Winget]
 
 ## ✨ Features
 - Install applications using [winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/) (Windows Package Manager).
-- Download Office using [OfficeToolsPlus](https://github.com/YerongAI/Office-Tool)
+- Unattended Download and Install Office using [Office Deploy Tool(ODT)](https://www.microsoft.com/en-us/download/details.aspx?id=49117)
 - Activate Windows and Office using [Microsoft-Activation-Scripts](https://github.com/massgravel/Microsoft-Activation-Scripts)
 - Windows Optimization tools using [Win11Debloat](https://github.com/Raphire/Win11Debloat)
 
@@ -58,4 +58,4 @@ Name: Display name in the menu
 Id: Winget ID (use winget search to find it)
 
 
-<img alt="wpi" width="800" src="https://i.imgur.com/leoEBt4.png">
+<img alt="wpi" width="800" src="https://imgur.com/wo1KD0J">

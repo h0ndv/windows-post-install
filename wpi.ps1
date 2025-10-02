@@ -3,9 +3,9 @@
 function Show-Menu {
     Clear-Host
     Write-Host "===== Windows Post Install =====" -ForegroundColor Cyan
-    Write-Host "[1] Basic Apps Installation"
+    Write-Host "[1] Basic Apps Installation" -ForegroundColor Green
     Write-Host "[2] Install Apps from Apps Folder" -ForegroundColor Green
-    Write-Host "[3] Download Office Tool Plus - https://github.com/YerongAI/Office-Tool" -ForegroundColor Yellow
+    Write-Host "[3] Office Deployment Tool (ODT)" -ForegroundColor Yellow
     Write-Host "[4] Microsoft Activation Script - https://massgrave.dev/" -ForegroundColor Yellow
     Write-Host
     Write-Host "===== Install Others Apps =====" -ForegroundColor Cyan
@@ -296,12 +296,6 @@ function Show-CategoryMenu {
     } while ($true)
 }
 
-# https://github.com/YerongAI/Office-Tool
-function Get-OfficeTools {
-    Write-Host "`Executing external script - Office Tools..." -ForegroundColor Yellow
-    Start-Process powershell.exe -ArgumentList '-NoExit', '-Command', 'Invoke-RestMethod https://officetool.plus | Invoke-Expression;'
-}
-
 # https://github.com/massgravel/Microsoft-Activation-Scripts
 function Invoke-ActivationTool {
     Write-Host "`nExecuting external script - Microsoft Activation Scripts..." -ForegroundColor Yellow
@@ -312,6 +306,86 @@ function Invoke-ActivationTool {
 function Invoke-Win11Debloat {
     Write-Host "`nExecuting external script - Win11Debloat..." -ForegroundColor Yellow
     & ([scriptblock]::Create((Invoke-RestMethod "https://debloat.raphi.re/")))
+}
+
+# Office Deployment Tool (ODT) Installation
+function Install-OfficeWithODT {
+    Write-Host "`n===== Office Deployment Tool Installation =====" -ForegroundColor Cyan
+    
+    $odtFolder = Join-Path $PSScriptRoot "ODT"
+    $setupPath = Join-Path $odtFolder "setup.exe"
+    $configPath = Join-Path $odtFolder "configuration.xml"
+    
+    # Check if setup.exe exists
+    if (-not (Test-Path $setupPath)) {
+        Write-Host "Office Deployment Tool (setup.exe) not found in ODT folder." -ForegroundColor Red
+        Write-Host "Expected location: $setupPath" -ForegroundColor Yellow
+        Pause
+        return
+    }
+    
+    # Check if configuration.xml exists
+    if (-not (Test-Path $configPath)) {
+        Write-Host "Configuration.xml not found in ODT folder." -ForegroundColor Red
+        Write-Host "Expected location: $configPath" -ForegroundColor Yellow
+        Write-Host "Creating a default configuration file..." -ForegroundColor Yellow
+        
+        # Create default configuration
+        $defaultConfig = @"
+<Configuration>
+  <Add OfficeClientEdition="64" Channel="Current">
+    <Product ID="Word2024Retail">
+      <Language ID="es-mx" />
+    </Product>
+    <Product ID="PowerPoint2024Retail">
+      <Language ID="es-mx" />
+    </Product>
+    <Product ID="Excel2024Retail">
+      <Language ID="es-mx" />
+    </Product>
+  </Add>
+</Configuration>
+"@
+        $defaultConfig | Out-File -FilePath $configPath -Encoding UTF8
+        Write-Host "Default configuration created at: $configPath" -ForegroundColor Green
+    }
+    
+    Write-Host "`nOffice Deployment Tool found at: $setupPath" -ForegroundColor Green
+    Write-Host "Configuration file found at: $configPath" -ForegroundColor Green
+    
+    # Display configuration content
+    Write-Host "`nConfiguration content:" -ForegroundColor Cyan
+    Get-Content $configPath | ForEach-Object { Write-Host "  $_" -ForegroundColor White }
+    
+    $confirm = Read-Host "`nDo you want to proceed with Office installation using ODT? (Y/N)"
+    
+    if ($confirm -notmatch '^(Y|y)$') {
+        Write-Host "Office installation cancelled." -ForegroundColor Red
+        Pause
+        return
+    }
+    
+    try {
+        Write-Host "`nStarting Office installation with ODT..." -ForegroundColor Yellow
+        Write-Host "This may take several minutes depending on your internet connection..." -ForegroundColor Yellow
+        
+        # Execute ODT with configuration
+        $process = Start-Process -FilePath $setupPath -ArgumentList "/configure", "`"$configPath`"" -Wait -PassThru -NoNewWindow
+        
+        if ($process.ExitCode -ne 0) {
+            Write-Host "`nOffice installation completed with exit code: $($process.ExitCode)" -ForegroundColor Yellow
+            Write-Host "Please check the installation logs for more details." -ForegroundColor Yellow
+            return
+        }
+        
+        Write-Host "`nOffice installation completed successfully!" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "`nError during Office installation: $($_.Exception.Message)" -ForegroundColor Red
+    }
+    
+    Write-Host "`nOffice Deployment Tool installation process completed." -ForegroundColor Green
+    Pause
 }
 
 function Install-WindowsUpdates {
@@ -784,7 +858,7 @@ do {
     switch ($option) {
         "1" { InstallBasicApps }
         "2" { Install-AppsFromFolder }
-        "3" { Get-OfficeTools }
+        "3" { Install-OfficeWithODT }
         "4" { Invoke-ActivationTool }
         "5" { Show-AppMenu -AppList $WingetBrowserList -Title "Browser Apps" }
         "6" { Show-AppMenu -AppList $WingetCodingList -Title "Coding & IDE Apps" }
