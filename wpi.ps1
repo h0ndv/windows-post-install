@@ -3,20 +3,21 @@
 function Show-Menu {
     Clear-Host
     Write-Host "===== Windows Post Install =====" -ForegroundColor Cyan
-    Write-Host "[1] Basic Apps Installation" -ForegroundColor Green
-    Write-Host "[2] Install Apps from Apps Folder" -ForegroundColor Green
-    Write-Host "[3] Office Deployment Tool (ODT)" -ForegroundColor Yellow
-    Write-Host "[4] Microsoft Activation Script - https://massgrave.dev/" -ForegroundColor Yellow
+    Write-Host "[1] Unattended Installation (Office + Apps + Updates)" -ForegroundColor Magenta
+    Write-Host "[2] Basic Apps Installation" -ForegroundColor Green
+    Write-Host "[3] Install Apps from Apps Folder" -ForegroundColor Green
+    Write-Host "[4] Office Deployment Tool (ODT)" -ForegroundColor Yellow
+    Write-Host "[5] Microsoft Activation Script - https://massgrave.dev/" -ForegroundColor Yellow
     Write-Host
     Write-Host "===== Install Others Apps =====" -ForegroundColor Cyan
-    Write-Host "[5] Browsers"
-    Write-Host "[6] Coding and IDEs"
-    Write-Host "[7] Gaming"
-    Write-Host "[8] Hardware Monitoring"
-    Write-Host "[9] Music and Video Players"
-    Write-Host "[10] Recording, Screenshots and Meetings"
-    Write-Host "[11] Security and Privacy (VPNs)"
-    Write-Host "[12] Office and PDF Applications"
+    Write-Host "[6] Browsers"
+    Write-Host "[7] Coding and IDEs"
+    Write-Host "[8] Gaming"
+    Write-Host "[9] Hardware Monitoring"
+    Write-Host "[10] Music and Video Players"
+    Write-Host "[11] Recording, Screenshots and Meetings"
+    Write-Host "[12] Security and Privacy (VPNs)"
+    Write-Host "[13] Office and PDF Applications"
     Write-Host
     Write-Host "===== Optimization Tools =====" -ForegroundColor Cyan
     Write-Host "[L] Run Windows Update" -ForegroundColor Yellow
@@ -25,6 +26,15 @@ function Show-Menu {
     Write-Host
     Write-Host "[X] Exit" -ForegroundColor Yellow
     Write-Host "[R] Restart system" -ForegroundColor Yellow
+}
+
+# Unattended Installation
+function Start-UnattendedInstallation {
+    Install-OfficeWithODT
+    Install-WindowsUpdates
+    Install-BasicApps
+    Install-AppsFromFolder
+    Pause
 }
 
 # Basic installation apps 
@@ -37,7 +47,7 @@ $WingetBasicList = @(
 )
 
 # Install basic apps
-function InstallBasicApps {
+function Install-BasicApps {
     Write-Host "`nThe following apps will be installed:" -ForegroundColor Cyan
     $WingetBasicList | ForEach-Object { Write-Host "- $_" }
 
@@ -64,9 +74,6 @@ function InstallBasicApps {
     }
 
     Write-Host "`nBasic Apps Installation completed." -ForegroundColor Green
-
-    # Install-WindowsUpdates
-    Pause
 }
 
 # Browsers
@@ -385,7 +392,6 @@ function Install-OfficeWithODT {
     }
     
     Write-Host "`nOffice Deployment Tool installation process completed." -ForegroundColor Green
-    Pause
 }
 
 function Install-WindowsUpdates {
@@ -778,7 +784,6 @@ function Install-AppsFromFolder {
     }
     
     Write-Host "`nApps installation completed." -ForegroundColor Green
-    Pause
 }
 
 function Pause {
@@ -856,18 +861,19 @@ do {
     $option = Read-Host "`nSelect an option"
 
     switch ($option) {
-        "1" { InstallBasicApps }
-        "2" { Install-AppsFromFolder }
-        "3" { Install-OfficeWithODT }
-        "4" { Invoke-ActivationTool }
-        "5" { Show-AppMenu -AppList $WingetBrowserList -Title "Browser Apps" }
-        "6" { Show-AppMenu -AppList $WingetCodingList -Title "Coding & IDE Apps" }
-        "7" { Show-AppMenu -AppList $WingetGamingList -Title "Gaming Apps" }
-        "8" { Show-AppMenu -AppList $WingetHardwareList -Title "Hardware Monitoring Apps" }
-        "9" { Show-CategoryMenu -CategoryTable $MediaCategories -Title "Media Apps" }
-        "10" { Show-AppMenu -AppList $WingetScreenList -Title "Recording, Screenshots & Meetings Apps" }
-        "11" { Show-AppMenu -AppList $WingetSecurityList -Title "Security and Privacy Apps" }
-        "12" { Show-AppMenu -AppList $WingetOfficeList -Title "Office and PDF Applications" }
+        "1" { Start-UnattendedInstallation }
+        "2" { Install-BasicApps }
+        "3" { Install-AppsFromFolder }
+        "4" { Install-OfficeWithODT }
+        "5" { Invoke-ActivationTool }
+        "6" { Show-AppMenu -AppList $WingetBrowserList -Title "Browser Apps" }
+        "7" { Show-AppMenu -AppList $WingetCodingList -Title "Coding & IDE Apps" }
+        "8" { Show-AppMenu -AppList $WingetGamingList -Title "Gaming Apps" }
+        "9" { Show-AppMenu -AppList $WingetHardwareList -Title "Hardware Monitoring Apps" }
+        "10" { Show-CategoryMenu -CategoryTable $MediaCategories -Title "Media Apps" }
+        "11" { Show-AppMenu -AppList $WingetScreenList -Title "Recording, Screenshots & Meetings Apps" }
+        "12" { Show-AppMenu -AppList $WingetSecurityList -Title "Security and Privacy Apps" }
+        "13" { Show-AppMenu -AppList $WingetOfficeList -Title "Office and PDF Applications" }
         "U" { WindowsUpdate }
         "L" { Install-WindowsUpdates }
         "D" { Invoke-Win11Debloat }
